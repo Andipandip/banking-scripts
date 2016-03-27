@@ -6,21 +6,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	//"io"
-	//"log"
 )
-
-const google_api_key string = "ME7rKjQE8BY_kew62KdCBh8VC3XbMFsAy"
 
 var categories = make(map[string][]string)
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Println("Must provide 2 arguments <expenses.csv> <categories.csv>")
+	if len(os.Args) != 4 {
+		fmt.Println("Must provide 3 arguments <ANZ|KB> <expenses.csv> <categories.csv>")
 		return
 	}
 
-	file := os.Args[1]
+	mode := os.Args[1]
+	file := os.Args[2]
 	fmt.Println(file)
 	f, err := os.Open(file)
 	defer f.Close()
@@ -43,16 +40,29 @@ func main() {
 	length := len(lines) - 1
 	for i := range lines[1:] { //ignore header
 		l := lines[length-i]
-		amount, err := strconv.ParseFloat(l[5], 64)
+		var a = ""
+		description := ""
+		date := ""
+		if mode == "ANZ" {
+			a = l[5]
+			description = fmt.Sprintf("%s %s %s %s", l[1], l[2], l[3], l[4])
+			date = l[6]
+		} else { //Kiwibank
+			a = l[3]
+			description = l[1]
+			date = l[0]
+		}
+		amount, err := strconv.ParseFloat(a, 64)
 		if amount > 0 {
 			continue
 		}
-		description := fmt.Sprintf("%s %s %s %s", l[1], l[2], l[3], l[4])
+		amount = amount * -1.0
+
 		category := categorize(description)
 		if category == "Ignore" {
 			continue
 		}
-		formattedLine := fmt.Sprintf("%s, %.2f, %s, %s\n", l[6], amount*-1.0, category, description)
+		formattedLine := fmt.Sprintf("%s, %.2f, %s, %s\n", date, amount, category, description)
 
 		_, err = outputFile.WriteString(formattedLine)
 		if checkError(err) {
@@ -62,7 +72,7 @@ func main() {
 }
 
 func setupCategories() {
-	file := os.Args[2]
+	file := os.Args[3]
 	f, err := os.Open(file)
 	defer f.Close()
 	if checkError(err) {
