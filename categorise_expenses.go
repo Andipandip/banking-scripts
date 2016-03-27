@@ -102,7 +102,7 @@ func check(values []string, desc string) bool {
 	return false
 }
 
-func checkError(err error) bool {
+func checkError(err error) {
 	if err != nil {
 		fmt.Println(err)
 	}
