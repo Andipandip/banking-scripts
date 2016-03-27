@@ -8,34 +8,18 @@ import (
 	"strings"
 )
 
-var categories = make(map[string][]string)
-
 func main() {
-	if len(os.Args) != 4 {
-		fmt.Println("Must provide 3 arguments <ANZ|KB> <expenses.csv> <categories.csv>")
+	if len(os.Args) != 5 {
+		fmt.Println("Must provide 4 arguments <ANZ|KB> <expenses.csv> <categories.csv> <output_file.csv>")
 		return
 	}
 
 	mode := os.Args[1]
-	file := os.Args[2]
-	fmt.Println(file)
-	f, err := os.Open(file)
-	defer f.Close()
-	if checkError(err) {
-		return
-	}
+	lines := readExpenses(os.Args[2])
+	categories := setupCategories(os.Args[3])
 
-	lines, err := csv.NewReader(f).ReadAll()
-	if checkError(err) {
-		return
-	}
-
-	setupCategories()
-
-	outputFile, err := os.OpenFile("/Users/dawnrichardson/Google Drive/results.csv", os.O_RDWR|os.O_APPEND, 0)
-	if checkError(err) {
-		return
-	}
+	output, err := os.OpenFile(os.Args[4], os.O_RDWR|os.O_APPEND, 0)
+	checkError(err)
 
 	length := len(lines) - 1
 	for i := range lines[1:] { //ignore header
@@ -58,38 +42,44 @@ func main() {
 		}
 		amount = amount * -1.0
 
-		category := categorize(description)
+		category := categorize(description, categories)
 		if category == "Ignore" {
 			continue
 		}
 		formattedLine := fmt.Sprintf("%s, %.2f, %s, %s\n", date, amount, category, description)
 
-		_, err = outputFile.WriteString(formattedLine)
-		if checkError(err) {
-			return
-		}
+		_, err = output.WriteString(formattedLine)
+		checkError(err)
 	}
 }
 
-func setupCategories() {
-	file := os.Args[3]
-	f, err := os.Open(file)
+func readExpenses(fileName string) [][]string {
+	f, err := os.Open(fileName)
 	defer f.Close()
-	if checkError(err) {
-		return
-	}
+	checkError(err)
 
 	lines, err := csv.NewReader(f).ReadAll()
-	if checkError(err) {
-		return
-	}
+	checkError(err)
+	return lines
+}
+
+func setupCategories(categoryFileName string) map[string][]string {
+	f, err := os.Open(categoryFileName)
+	defer f.Close()
+	checkError(err)
+
+	lines, err := csv.NewReader(f).ReadAll()
+	checkError(err)
+
+	categories := make(map[string][]string)
 	for i := range lines {
 		l := lines[i]
 		categories[l[0]] = l[1:]
 	}
+	return categories
 }
 
-func categorize(desc string) string {
+func categorize(desc string, categories map[string][]string) string {
 	for key, values := range categories {
 		if check(values, desc) {
 			return key
@@ -115,7 +105,5 @@ func check(values []string, desc string) bool {
 func checkError(err error) bool {
 	if err != nil {
 		fmt.Println(err)
-		return true
 	}
-	return false
 }
